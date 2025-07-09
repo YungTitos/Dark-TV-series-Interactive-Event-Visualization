@@ -90,9 +90,9 @@ function initializeVizControls() {
 
     const controlsContainer = document.createElement('div');
     controlsContainer.className = 'viz-controls';    const buttons = [
-        { text: 'Interactive Timeline', src: '../Visualization/Visualization.html', height: 700 }, 
+        { text: 'Interactive Timeline', src: '../Visualization.html', height: 700 }, 
         //{ text: 'Static Timeline (Alt)', src: '../Visualization/dark_timeline_grid(yungtversion).html', height: 725 }, 
-        { text: 'Timeline Image', src: '../Visualization/Visualization.png', type: 'image', height: 700 } 
+        { text: 'Timeline Image', src: '../Visualization.png', type: 'image', height: 700 } 
     ];
 
     buttons.forEach(btnInfo => {
