@@ -81,7 +81,14 @@ function initializeVizControls() {
     if (!vizContainer || !iframeWrapper || !iframe) {
         console.warn('Required elements not found for viz controls');
         return;
-    }    // Create loading overlay
+    }
+
+    // Mobile detection function
+    const isMobile = () => {
+        return window.innerWidth <= 768 || /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+    };
+
+    // Create loading overlay
     const loadingOverlay = createLoadingOverlay();
     vizContainer.appendChild(loadingOverlay);
 
@@ -89,8 +96,10 @@ function initializeVizControls() {
     setupExternalScrolling(iframe, iframeWrapper);
 
     const controlsContainer = document.createElement('div');
-    controlsContainer.className = 'viz-controls';    const buttons = [
-        { text: 'Interactive Timeline', src: 'Visualization.html', height: 700 }, 
+    controlsContainer.className = 'viz-controls';
+
+    const buttons = [
+        { text: 'Interactive Timeline', src: 'Visualization.html', height: 700, desktopOnly: true }, 
         //{ text: 'Static Timeline (Alt)', src: '../Visualization/dark_timeline_grid(yungtversion).html', height: 725 }, 
         { text: 'Timeline Image', src: 'Visualization.png', type: 'image', height: 700 } 
     ];
@@ -98,7 +107,25 @@ function initializeVizControls() {
     buttons.forEach(btnInfo => {
         const button = document.createElement('button');
         button.className = 'viz-btn';
-        button.textContent = btnInfo.text;        button.addEventListener('click', () => {
+        
+        // Check if this is a desktop-only button on mobile
+        const isDesktopOnlyOnMobile = btnInfo.desktopOnly && isMobile();
+        
+        if (isDesktopOnlyOnMobile) {
+            button.innerHTML = `🔒 ${btnInfo.text}`;
+            button.classList.add('locked');
+            button.title = 'This feature is only available on desktop';
+        } else {
+            button.textContent = btnInfo.text;
+        }
+
+        button.addEventListener('click', () => {
+            // If this is a locked button, show message and return
+            if (isDesktopOnlyOnMobile) {
+                showDesktopOnlyMessage();
+                return;
+            }
+            
             // Show loading overlay
             showLoadingOverlay(loadingOverlay);
             
@@ -319,16 +346,120 @@ function initializeVizControls() {
         controlsContainer.appendChild(button);
     });
 
-    vizContainer.insertBefore(controlsContainer, iframeWrapper);    // Set first button as active by default and load its content
+    vizContainer.insertBefore(controlsContainer, iframeWrapper);
+
+    // Set first button as active by default and load its content
     if (controlsContainer.firstChild) {
+        // On mobile, activate the Timeline Image button (second button)
+        // On desktop, activate the Interactive Timeline button (first button)
+        const defaultButton = isMobile() ? 
+            controlsContainer.children[1] || controlsContainer.firstChild : 
+            controlsContainer.firstChild;
+            
         // Show loading overlay initially
         setTimeout(() => {
             showLoadingOverlay(loadingOverlay);
-            controlsContainer.firstChild.click();
+            defaultButton.click();
         }, 100);
     }
 
     syncThemeWithAnimation(controlsContainer);
+}
+
+// Function to show desktop-only message
+function showDesktopOnlyMessage() {
+    // Create modal overlay
+    const modalOverlay = document.createElement('div');
+    modalOverlay.className = 'desktop-only-modal-overlay';
+    modalOverlay.style.cssText = `
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.8);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 10000;
+        animation: modalFadeIn 0.3s ease-out;
+    `;
+    
+    // Create modal content
+    const modalContent = document.createElement('div');
+    modalContent.className = 'desktop-only-modal';
+    modalContent.style.cssText = `
+        background: linear-gradient(135deg, #1a1a1a 0%, #2a2a2a 100%);
+        border: 2px solid #444;
+        border-radius: 12px;
+        padding: 30px;
+        max-width: 400px;
+        margin: 20px;
+        text-align: center;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+        animation: modalSlideIn 0.3s ease-out;
+    `;
+    
+    modalContent.innerHTML = `
+        <div style="font-size: 48px; margin-bottom: 20px;">🔒</div>
+        <h3 style="color: #fff; margin-bottom: 15px; font-family: 'JetBrains Mono', monospace;">Desktop Only Feature</h3>
+        <p style="color: #ccc; margin-bottom: 25px; line-height: 1.5;">
+            The Interactive Timeline requires a desktop browser for optimal performance and functionality. 
+            Please switch to a desktop device to access this feature.
+        </p>
+        <button id="closeDesktopModal" style="
+            background: linear-gradient(135deg, #444 0%, #333 100%);
+            color: #fff;
+            border: 2px solid #555;
+            border-radius: 6px;
+            padding: 12px 24px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 14px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        ">Got it</button>
+    `;
+    
+    modalOverlay.appendChild(modalContent);
+    document.body.appendChild(modalOverlay);
+    
+    // Add close functionality
+    const closeButton = modalContent.querySelector('#closeDesktopModal');
+    const closeModal = () => {
+        modalOverlay.style.animation = 'modalFadeOut 0.3s ease-out';
+        setTimeout(() => {
+            if (document.body.contains(modalOverlay)) {
+                document.body.removeChild(modalOverlay);
+            }
+        }, 300);
+    };
+    
+    closeButton.addEventListener('click', closeModal);
+    modalOverlay.addEventListener('click', (e) => {
+        if (e.target === modalOverlay) {
+            closeModal();
+        }
+    });
+    
+    // Close on escape key
+    const handleEscape = (e) => {
+        if (e.key === 'Escape') {
+            closeModal();
+            document.removeEventListener('keydown', handleEscape);
+        }
+    };
+    document.addEventListener('keydown', handleEscape);
+    
+    // Add hover effect to button
+    closeButton.addEventListener('mouseenter', () => {
+        closeButton.style.background = 'linear-gradient(135deg, #555 0%, #444 100%)';
+        closeButton.style.borderColor = '#666';
+    });
+    
+    closeButton.addEventListener('mouseleave', () => {
+        closeButton.style.background = 'linear-gradient(135deg, #444 0%, #333 100%)';
+        closeButton.style.borderColor = '#555';
+    });
 }
 
 function parseColor(str) {
@@ -1368,6 +1499,23 @@ function updateZoomIndicator(indicator) {
     const zoomText = Math.round(zoomLevel * 100) + '%';
     indicator.textContent = zoomText;
 }
+
+// Handle window resize for mobile/desktop mode changes
+window.addEventListener('resize', function() {
+    // Debounce resize events
+    clearTimeout(window.resizeTimeout);
+    window.resizeTimeout = setTimeout(() => {
+        // Check if we need to reinitialize controls due to mobile/desktop change
+        const vizContainer = document.querySelector('.visualization-container');
+        const controlsContainer = vizContainer?.querySelector('.viz-controls');
+        
+        if (controlsContainer) {
+            // Remove existing controls and reinitialize
+            controlsContainer.remove();
+            initializeVizControls();
+        }
+    }, 250);
+});
 
 
 

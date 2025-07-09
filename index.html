@@ -84,19 +84,103 @@
 
         <section class="explanation-section">
             <div class="explanation-content">
-                <h2>Project Overview</h2>
-                <p>This visualization explores the intricate temporal relationships and causal loops within the Dark TV series universe. Through interactive data representation, we examine the complex web of events that span multiple timelines and dimensions.</p>
-                
-                <h3>Features</h3>
+                <h1>Overview</h1>
+                <p>This project visualizes the complex temporal relationships and character interactions within the Dark TV series through an interactive grid-based timeline. The visualization displays characters along the Y-axis and dates along the X-axis, providing a linear progression of events while maintaining clarity on character participation patterns.</p>
+
+                <h2>What It Shows</h2>
+                <p>The visualization reveals:</p>
                 <ul>
-                    <li>Interactive timeline navigation across three time periods</li>
-                    <li>Character relationship mapping and family tree visualization</li>
-                    <li>Causal loop identification and temporal paradox analysis</li>
-                    <li>Multi-dimensional event correlation</li>
+                    <li><strong>Character Event Participation:</strong> How different characters are involved in events across the timeline</li>
+                    <li><strong>Temporal Relationships:</strong> The linear progression of events from 1888 to 2053</li>
+                    <li><strong>Character Interaction Patterns:</strong> Visual indicators showing which characters participate in the same events</li>
+                    <li><strong>Event Clustering:</strong> How events are grouped by date and character involvement</li>
+                    <li><strong>Narrative Flow:</strong> The chronological development of the series' complex storyline</li>
                 </ul>
 
-                <h3>Technical Implementation</h3>
-                <p>Built using modern web technologies with a focus on performance and accessibility. The visualization leverages advanced data structures to represent the non-linear narrative structure of the series.</p>
+                <h1>Data Processing</h1>
+                <p>The dataset was processed using Python libraries including:</p>
+                <ul>
+                    <li><strong>Pandas & NumPy:</strong> For data manipulation and analysis</li>
+                    <li><strong>spaCy:</strong> For natural language processing to identify character mentions</li>
+                    <li><strong>Plotly:</strong> For interactive visualization generation</li>
+                </ul>
+
+                <h2>Processing Methodology</h2>
+                
+                <h3>Event Merging Strategy</h3>
+                <p>Due to space constraints from the competition submission requirements, events were strategically merged based on:</p>
+                <ul>
+                    <li>Minimal incoming or outgoing edges in the event network</li>
+                    <li>Event nature (excluding major deaths or pivotal plot points from merging)</li>
+                    <li>Character overlap and temporal proximity</li>
+                </ul>
+
+                <h3>Description Processing</h3>
+                <p>Event descriptions were:</p>
+                <ul>
+                    <li>Summarized using large language models (LLMs) with human oversight</li>
+                    <li>Formatted using character initials to maximize space efficiency</li>
+                    <li>Analyzed using NLP to identify primary character involvement</li>
+                </ul>
+
+                <h1>Visual Design</h1>
+                
+                <h2>Design Principles</h2>
+
+                <h3>Character Representation</h3>
+                <p>Each character is represented by a unique color carefully chosen based on their most iconic or frequently worn clothing in the series, particularly during pivotal moments.</p>
+
+                <h3>Event Indicators</h3>
+                <p>Instead of displaying full descriptions for every character, the timeline uses:</p>
+                <ul>
+                    <li><strong>Discrete markers</strong> on rectangle corners and sides to indicate character involvement</li>
+                    <li><strong>Dynamic rectangle sizing</strong> — descriptions cause rectangles to expand while non-participant rectangles may be reduced</li>
+                    <li><strong>Asymmetric expansion</strong> — adjacent rectangles with text expand in complementary directions to avoid overlap</li>
+                </ul>
+
+                <h2>Interactive Elements</h2>
+
+                <h3>User Interface Features</h3>
+                <ul>
+                    <li><strong>Hover tooltips</strong> with detailed event information</li>
+                    <li><strong>Character-specific coloring</strong> for immediate recognition</li>
+                    <li><strong>Zoom and pan functionality</strong> for detailed exploration</li>
+                    <li><strong>World indicators</strong> showing different timeline universes (Jonas, Martha, Origin)</li>
+                </ul>
+
+                <h1>Technical Implementation</h1>
+                
+                <h2>Architecture Overview</h2>
+                <p>The project consists of three main components:</p>
+                <ul>
+                    <li><strong>Data Processing Pipeline</strong> (<code>DataManipulation.py</code>) — Cleans and processes the raw event data</li>
+                    <li><strong>Visualization Engine</strong> (<code>Visualization.py</code>) — Generates the interactive Plotly timeline</li>
+                    <li><strong>Web Interface</strong> (<code>Website/</code>) — Provides an elegant front-end with Dark-themed animations</li>
+                </ul>
+
+                <h2>Technical Features</h2>
+
+                <h3>Core Capabilities</h3>
+                <ul>
+                    <li><strong>Responsive Design:</strong> Adapts to different screen sizes</li>
+                    <li><strong>Performance Optimization:</strong> Efficient rendering of large datasets</li>
+                    <li><strong>Cross-browser Compatibility:</strong> Works across modern web browsers</li>
+                    <li><strong>Accessibility:</strong> Designed with dark theme and clear visual hierarchy</li>
+                </ul>
+
+                <h1>Usage Guide</h1>
+                
+                <h2>Getting Started</h2>
+                <p>Follow these steps to explore the Dark TV series timeline:</p>
+                <ol>
+                    <li><strong>View the Visualization:</strong> Open the web interface to explore the timeline</li>
+                    <li><strong>Navigate Events:</strong> Use zoom and pan controls to focus on specific time periods</li>
+                    <li><strong>Explore Characters:</strong> Hover over rectangles to see detailed event information</li>
+                    <li><strong>Analyze Patterns:</strong> Observe character participation patterns across the timeline</li>
+                </ol>
+
+                <h1>About Dark TV Series</h1>
+                <p>The visualization captures the intricate temporal mechanics of Dark, a German science fiction thriller that explores time travel, causal loops, and interconnected family histories across multiple generations and parallel worlds.</p>
 
                 <div class="quote-box">
                     <blockquote>

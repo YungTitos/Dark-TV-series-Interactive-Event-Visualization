@@ -657,19 +657,41 @@ body {
     padding: 0 2rem;
 }
 
+/* Typography Hierarchy */
+.explanation-content h1 {
+    font-family: 'Crimson Text', serif;
+    font-size: 3rem;
+    margin: 3rem 0 2rem 0;
+    color: #fff;
+    font-weight: 600;
+    line-height: 1.2;
+}
+
 .explanation-content h2 {
     font-family: 'Crimson Text', serif;
     font-size: 2.5rem;
-    margin-bottom: 2rem;
-    color: #fff;
-    text-align: center;
+    margin: 2.5rem 0 1.5rem 1rem;
+    color: #e0e0e0;
+    font-weight: 600;
+    line-height: 1.3;
 }
 
 .explanation-content h3 {
     font-family: 'Crimson Text', serif;
     font-size: 1.8rem;
-    margin: 2.5rem 0 1rem 0;
+    margin: 2rem 0 1rem 2rem;
     color: #ccc;
+    font-weight: 500;
+    line-height: 1.4;
+}
+
+.explanation-content h4 {
+    font-family: 'Crimson Text', serif;
+    font-size: 1.4rem;
+    margin: 1.5rem 0 0.8rem 3rem;
+    color: #bbb;
+    font-weight: 500;
+    line-height: 1.4;
 }
 
 .explanation-content p {
@@ -677,16 +699,25 @@ body {
     margin-bottom: 1.5rem;
     color: #bbb;
     line-height: 1.8;
+    margin-left: 0.5rem;
 }
 
 .explanation-content ul {
-    margin: 1rem 0 2rem 2rem;
+    margin: 1rem 0 2rem 3rem;
+    padding-left: 1rem;
+}
+
+.explanation-content ol {
+    margin: 1rem 0 2rem 3rem;
+    padding-left: 1rem;
 }
 
 .explanation-content li {
     margin-bottom: 0.8rem;
     color: #bbb;
     font-size: 1.05rem;
+    line-height: 1.6;
+    padding-left: 0.5rem;
 }
 
 .quote-box {
@@ -1445,12 +1476,33 @@ input[type="range"]::-moz-range-thumb {
         padding: 0 1.5rem;
     }
     
+    .explanation-content h1 {
+        font-size: 2.5rem;
+        margin: 2rem 0 1.5rem 0;
+    }
+    
     .explanation-content h2 {
         font-size: 2rem;
+        margin: 2rem 0 1.2rem 0.5rem;
     }
     
     .explanation-content h3 {
         font-size: 1.5rem;
+        margin: 1.5rem 0 0.8rem 1rem;
+    }
+    
+    .explanation-content h4 {
+        font-size: 1.2rem;
+        margin: 1.2rem 0 0.6rem 1.5rem;
+    }
+    
+    .explanation-content ul,
+    .explanation-content ol {
+        margin: 1rem 0 1.5rem 2rem;
+    }
+    
+    .explanation-content p {
+        margin-left: 0.2rem;
     }
       .visualization-container {
         min-height: 800px;
@@ -1480,12 +1532,34 @@ input[type="range"]::-moz-range-thumb {
         font-size: 2rem;
     }
     
+    .explanation-content h1 {
+        font-size: 2rem;
+        margin: 1.5rem 0 1rem 0;
+    }
+    
     .explanation-content h2 {
         font-size: 1.8rem;
+        margin: 1.5rem 0 1rem 0.3rem;
+    }
+    
+    .explanation-content h3 {
+        font-size: 1.4rem;
+        margin: 1.2rem 0 0.6rem 0.6rem;
+    }
+    
+    .explanation-content h4 {
+        font-size: 1.1rem;
+        margin: 1rem 0 0.5rem 1rem;
     }
     
     .explanation-content p {
         font-size: 1rem;
+        margin-left: 0.1rem;
+    }
+    
+    .explanation-content ul,
+    .explanation-content ol {
+        margin: 0.8rem 0 1.2rem 1.5rem;
     }
     
     .spark {
@@ -1538,6 +1612,47 @@ input[type="range"]::-moz-range-thumb {
     border-color: var(--btn-active-border-color);
     box-shadow: 0 0 25px 3px var(--btn-glow-color), inset 0 0 15px 0 var(--btn-glow-color);
     transform: translateY(-2px) scale(1.05);
+}
+
+/* Locked button styles */
+.viz-btn.locked {
+    background: rgba(64, 64, 64, 0.3);
+    color: #888;
+    border-color: #555;
+    cursor: not-allowed;
+    box-shadow: 0 0 5px 0 rgba(128, 128, 128, 0.3);
+    text-shadow: 0 0 3px rgba(128, 128, 128, 0.3);
+    opacity: 0.7;
+}
+
+.viz-btn.locked:hover {
+    background: rgba(96, 96, 96, 0.4);
+    color: #999;
+    border-color: #666;
+    box-shadow: 0 0 10px 0 rgba(128, 128, 128, 0.4);
+    transform: translateY(-1px);
+}
+
+/* Modal animations */
+@keyframes modalFadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+@keyframes modalFadeOut {
+    from { opacity: 1; }
+    to { opacity: 0; }
+}
+
+@keyframes modalSlideIn {
+    from { 
+        opacity: 0; 
+        transform: translateY(-20px) scale(0.95); 
+    }
+    to { 
+        opacity: 1; 
+        transform: translateY(0) scale(1); 
+    }
 }
 
 /* Bronze Theme for Time Machine */
