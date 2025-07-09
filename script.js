@@ -1412,6 +1412,15 @@ function initializeZoom() {
     resetBtn.textContent = 'Reset';
     resetBtn.title = 'Reset zoom (or double-click on frame border)';
     
+    // --- MOBILE FIX: Always show and fix controls on mobile ---
+    const isMobile = () => window.innerWidth <= 768 || /Mobi|Android/i.test(navigator.userAgent);
+    if (isMobile()) {
+        zoomControls.classList.add('mobile-fixed');
+        zoomIndicator.classList.add('mobile-fixed');
+        resetBtn.classList.add('mobile-fixed');
+    }
+    // --------------------------------------------------------
+
     // Add all controls to the visualization container to keep them fixed
     vizContainer.appendChild(zoomControls);
     vizContainer.appendChild(zoomIndicator);
@@ -1429,12 +1438,16 @@ function initializeZoom() {
     });
     
     // Hover functionality for zoom controls - attached to vizContainer
-    vizContainer.addEventListener('mouseenter', () => showZoomControls(zoomControls));
-    vizContainer.addEventListener('mouseleave', () => hideZoomControlsDelayed(zoomControls));
-    
-    // Keep controls visible when hovering over them
-    zoomControls.addEventListener('mouseenter', () => clearZoomControlsTimeout());
-    zoomControls.addEventListener('mouseleave', () => hideZoomControlsDelayed(zoomControls));
+    if (!isMobile()) {
+        vizContainer.addEventListener('mouseenter', () => showZoomControls(zoomControls));
+        vizContainer.addEventListener('mouseleave', () => hideZoomControlsDelayed(zoomControls));
+        // Keep controls visible when hovering over them
+        zoomControls.addEventListener('mouseenter', () => clearZoomControlsTimeout());
+        zoomControls.addEventListener('mouseleave', () => hideZoomControlsDelayed(zoomControls));
+    } else {
+        // On mobile, always show controls
+        zoomControls.classList.add('visible');
+    }
 
     // Double-click to reset - on iframe itself
     iframe.addEventListener('dblclick', () => {
