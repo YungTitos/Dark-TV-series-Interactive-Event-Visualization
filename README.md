@@ -1,6 +1,6 @@
 # Dark TV Series Interactive Event Visualization
 
-An interactive timeline visualization that maps character participation in events throughout the Dark TV series universe, spanning from 1888 to 2053.
+An interactive timeline visualization that maps character participation in events throughout the Dark TV series universe, spanning from 1888 to 2053: https://yungtitos.github.io/Dark-TV-series-Interactive-Event-Visualization/
 
 ## 🎯 Overview
 
@@ -91,3 +91,6 @@ The visualization captures the intricate temporal mechanics of Dark, a German sc
 ---
 
 *"The question isn't how, the question is when."* - Dark TV Series
+
+
+
