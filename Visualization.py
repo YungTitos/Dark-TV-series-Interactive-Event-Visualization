@@ -41,23 +41,23 @@ events_df['Date'] = pd.to_datetime(events_df['Date'], format='mixed', dayfirst=T
 
 # Character color mapping for DARK
 character_colors = {       
-    "Jonas Kahnwald / Adam": "#ffe119", # Yellow
-    "Martha Nielsen / Eve": "#911eb4", # Purple
-    "Claudia Tiedemann": "#e6194B", # Red  
-    "Noah / Hanno Tauber": "#9A6324", # Brown 
-    "Ulrich Nielsen": "#42d4f4", # Cyan   
-    "Elisabeth Doppler": "#f58231", # Orange
-    "Hannah Kahnwald / Hannah Nielsen": "#ba0012", # Dark Red 
-    "Helge Doppler": "#008080", # Dark Teal  
-    "Egon Tiedemann": "#707000", # Olive Green 
-    "Charlotte Doppler": "#A0522D", # Peru Brown 
-    "H.G. Tannhaus": "#d8e200", # Light Green              
+    "Jonas Kahnwald / Adam": "#92782d", # Yellow
+    "Martha Nielsen / Eve": "#8c0048", # Purple
+    "Claudia Tiedemann": "#7a0014", # Red  
+    "Noah / Hanno Tauber": "#232930", # Brown 
+    "Ulrich Nielsen": "#46606c", # Cyan   
+    "Elisabeth Doppler": "#cb3608", # Orange
+    "Hannah Kahnwald / Hannah Nielsen": "#640d00", # Dark Red 
+    "Helge Doppler": "#2b5860", # Dark Teal  
+    "Egon Tiedemann": "#615c46", # Olive Green 
+    "Charlotte Doppler": "#422418", # Peru Brown 
+    "H.G. Tannhaus": "#500c01", # Light Green              
     "Martha Nielsen": "#f032e6", # Magenta
-    "Unknown": "#3350ff", # Blue                                  
-    "Mikkel Nielsen / Michael Kahnwald": "#b72037", # Dark Pink 
-    "Katharina Nielsen": "#ed24cc", # Pink   
-    "Bartosz Tiedemann": "#ede169", # Light Yellow               
-    "Aleksander Tiedemann / Boris Niewald": "#000075" # Navy 
+    "Unknown": "#10313c", # Blue                                  
+    "Mikkel Nielsen / Michael Kahnwald": "#802124", # Dark Pink 
+    "Katharina Nielsen": "#53344d", # Pink   
+    "Bartosz Tiedemann": "#7d5639", # Light Yellow               
+    "Aleksander Tiedemann / Boris Niewald": "#0a5563" # Navy 
 }
 
 character_text_colors = {
@@ -117,11 +117,66 @@ def wrap_event_text(text, width, max_lines=None):
     # Use HTML line breaks with reduced line-height CSS for tighter spacing
     return "<br>".join(lines)
 
+def extract_event_types_and_numbers(event_type_str):
+    """
+    Extract event types and their numbers from the Type column.
+    Returns a list of tuples: [(event_type, number), ...]
+    """
+    import re
+    
+    if not isinstance(event_type_str, str):
+        return []
+    
+    event_types = []
+    
+    # Split by comma to handle multiple event types
+    parts = event_type_str.split(',')
+    
+    for part in parts:
+        part = part.strip()
+        
+        # Look for "Successful Time Travel" or "Succesfull Time Travel" (with typo)
+        if "Successful Time Travel" in part or "Succesfull Time Travel" in part:
+            # Extract number in parentheses
+            match = re.search(r'\((\d+)\)', part)
+            if match:
+                number = int(match.group(1))
+                event_types.append(("Successful Time Travel", number))
+        
+        # Look for "World Swap"
+        elif "World Swap" in part:
+            # Extract number in parentheses
+            match = re.search(r'\((\d+)\)', part)
+            if match:
+                number = int(match.group(1))
+                event_types.append(("World Swap", number))
+    
+    return event_types
+
+def get_events_with_same_type_number(events_df, target_type, target_number):
+    """
+    Get all events that have the same event type and number.
+    Returns a set of event indices.
+    """
+    matching_events = set()
+    
+    for idx, row in events_df.iterrows():
+        event_types = extract_event_types_and_numbers(row['Type'])
+        for event_type, number in event_types:
+            if event_type == target_type and number == target_number:
+                matching_events.add(idx)
+                break
+    
+    return matching_events
+
 def add_description_text(all_text_traces, x_position, char_position, description, is_important, rect_height, char, char_positions, event_rects, event_idx, expansion_info=None, is_death=False):
     """
     Add description text with possible rectangle expansion.
     expansion_info: dict with keys 'expand_above', 'expand_below', 'expanded_height'
     is_death: whether this is a death event (forces white text color)
+    
+    Creates text traces that are compatible with the button highlighting system.
+    Each text trace gets a unique name and stores the event index for JavaScript access.
     """
     # Determine max_lines based on expansion_info
     if expansion_info is not None:
@@ -134,31 +189,49 @@ def add_description_text(all_text_traces, x_position, char_position, description
     else:
         max_lines = 4
 
-    wrapped_desc = wrap_event_text(description, width=16, max_lines=max_lines)
-    # Dynamically calculate text color based on importance or background brightness
+    wrapped_desc = wrap_event_text(description, width=18, max_lines=max_lines)
+    
+    # Determine text color - white for all events except death events which are black
     if is_death:
-        text_color = '#FFFFFF'  # Force white text for death events
+        text_color = '#000000'  # Force black text for death events
     else:
-        text_color = character_text_colors.get(char, 'white')  # Use predefined text colors
+        text_color = '#FFFFFF'  # White text for all other events
 
-    # Adjust text position based on expansion or contraction direction
-    # Since we're now passing the actual rectangle center, we don't need additional adjustments
-    adjusted_y_position = char_position  # Use the center position directly
+    # Use the center position directly
+    adjusted_y_position = char_position
 
-    all_text_traces.append(
-        go.Scatter(
-            x=[x_position],
-            y=[adjusted_y_position],
-            mode='text',
-            text=wrapped_desc,
-            textfont=dict(
-                color=text_color,
-                size=14
-            ),
-            hoverinfo='none',
-            showlegend=False
-        )
+    # Create a unique and descriptive name for the text trace
+    # Format: text_trace_{event_idx}_{char_name}_{x_position}
+    trace_name = f'text_trace_{event_idx}_{char.replace(" ", "_").replace("/", "_")}_{x_position}'
+    
+    # Create the text trace with all necessary data for JavaScript interaction
+    text_trace = go.Scatter(
+        x=[x_position],
+        y=[adjusted_y_position],
+        mode='text',
+        text=[wrapped_desc],
+        textfont=dict(
+            color=text_color,
+            size=14
+        ),
+        hoverinfo='none',
+        showlegend=False,
+        name=trace_name,
+        # Store comprehensive data for JavaScript:
+        # [event_idx, character, x_position, original_color, is_death]
+        customdata=[event_idx, char, x_position, text_color, is_death],
+        # Add metadata as a custom property for easier access
+        meta={
+            'event_idx': event_idx,
+            'character': char,
+            'x_position': x_position,
+            'original_color': text_color,
+            'is_death': is_death,
+            'trace_type': 'event_text'
+        }
     )
+    
+    all_text_traces.append(text_trace)
 
 # Function to normalize character names by removing world indicators
 def normalize_character_name(character):
@@ -210,6 +283,102 @@ def optimize_description_placement(event_group):
     
     # Return the first group with unique characters and the remaining events
     return first_group, remaining_events
+
+def add_interactive_buttons(all_hover_traces, x_position, char_position, event, event_idx, rect_width, rect_height, events_df):
+    """
+    Add circular buttons for Successful Time Travel and World Swap events.
+    Buttons are positioned on the right side of the rectangle border.
+    Only adds buttons if there are matching events with the same type and number.
+    """
+    # Extract event types and numbers from the event
+    event_types = extract_event_types_and_numbers(event.get('Type', ''))
+    
+    if not event_types:
+        return  # No buttons to add
+    
+    # Helper function to find destination date for time travel
+    def get_destination_date(current_event_idx, event_type, number):
+        matching_events = get_events_with_same_type_number(events_df, event_type, number)
+        matching_events.discard(current_event_idx)  # Remove current event
+        
+        if matching_events:
+            # Get the first matching event (destination)
+            dest_event_idx = next(iter(matching_events))
+            dest_event = events_df.iloc[dest_event_idx]
+            return dest_event['Date'].strftime('%d/%m/%Y')
+        return None
+    
+    # Filter event types to only include those with matching events
+    valid_event_types = []
+    for event_type, number in event_types:
+        matching_events = get_events_with_same_type_number(events_df, event_type, number)
+        if len(matching_events) > 1:  # Only add button if there are multiple matching events
+            valid_event_types.append((event_type, number))
+    
+    if not valid_event_types:
+        return  # No valid buttons to add
+    
+    button_radius = 0.18  # Increased button radius for bigger buttons
+    button_spacing = 1  # Increased spacing between buttons when there are multiple
+    
+    # Calculate base button position (right side of rectangle, tight on border)
+    button_x = x_position + rect_width  # Position exactly on the right border
+    
+    # If there are multiple buttons, position them vertically centered around the rectangle center
+    if len(valid_event_types) == 1:
+        button_y_positions = [char_position]
+    else:  # 2 buttons
+        offset = button_spacing / 2
+        button_y_positions = [char_position - offset, char_position + offset]
+    
+    for idx, (event_type, number) in enumerate(valid_event_types):
+        if idx >= len(button_y_positions):
+            break  # Safety check
+            
+        button_y = button_y_positions[idx]
+        
+        # Determine button color and emoji based on event type
+        if event_type == "Successful Time Travel":
+            button_color = "#4CAF50"  # Green
+            button_emoji = "⏰"  # Clock emoji - better represents time travel
+        elif event_type == "World Swap":
+            button_color = "#2196F3"  # Blue
+            button_emoji = "🌍"  # World emoji
+        else:
+            continue  # Skip unknown event types
+        
+        # Get destination date for hover text
+        destination_date = get_destination_date(event_idx, event_type, number)
+        if destination_date:
+            hover_text = f'{event_type}<br>Destination: {destination_date}<br>Click to highlight related events'
+        else:
+            hover_text = f'{event_type}<br>Click to highlight related events'
+        
+        # Create unique button ID for JavaScript interaction
+        button_id = f"btn_{event_type.replace(' ', '_')}_{number}_{event_idx}_{idx}"
+        
+        # Add circular button as a scatter trace with custom hover and click functionality
+        button_trace = go.Scatter(
+            x=[button_x],
+            y=[button_y],
+            mode='markers+text',
+            marker=dict(
+                size=button_radius * 100,  # Convert to marker size
+                color=button_color,
+                symbol='circle',
+                line=dict(color='white', width=2)
+            ),
+            text=[button_emoji],
+            textfont=dict(color='white', size=16),  # Larger size for emoji
+            hoverinfo='text',
+            hovertext=hover_text,
+            showlegend=False,
+            # Store button metadata for JavaScript
+            customdata=[event_type, number, event_idx, x_position, char_position],
+            name=button_id
+        )
+        
+        all_hover_traces.append(button_trace)
 
 def create_dark_timeline_grid(character_spacing=1.0, event_spacing=1.0, rect_width=0.8, rect_height=0.4, 
                              show_non_participants=True, asymmetric_expansion=False):
@@ -520,10 +689,23 @@ def create_dark_timeline_grid(character_spacing=1.0, event_spacing=1.0, rect_wid
                     death_value = event.get('Death', False)
                     is_death = death_value == True or death_value == 'True'
                     
+                    # Check if the event is important
+                    is_important = event.get('Important Trigger', False)
+                    
                     if is_death:
                         color = "#868686"  # Gray color for death events
                     else:
-                        color = character_colors.get(char, "#FFFFFF")  # Normal Color  
+                        base_color = character_colors.get(char, "#FFFFFF")  # Normal Color
+                        if is_important:
+                            # Make the color dimmer for important events
+                            # Convert hex to RGB, reduce brightness, convert back to hex
+                            hex_color = base_color.lstrip('#')
+                            rgb = tuple(int(hex_color[i:i+2], 16) for i in (0, 2, 4))
+                            # Reduce brightness by 30%
+                            dimmed_rgb = tuple(int(c * 0.7) for c in rgb)
+                            color = '#%02x%02x%02x' % dimmed_rgb
+                        else:
+                            color = base_color  
 
                     # Define coordinates for the rectangle using incremental positioning
                     x0 = x_position - rect_width
@@ -627,8 +809,19 @@ def create_dark_timeline_grid(character_spacing=1.0, event_spacing=1.0, rect_wid
                     # Get character color for hover background
                     char_color = character_colors.get(char, "#FFFFFF")
                     
-                    # Calculate text color based on background brightness
-                    text_color = 'black' if np.mean([int(char_color[i:i+2], 16) for i in (1, 3, 5)]) > 128 else 'white'
+                    # For death events, override with grey background and white text
+                    if is_death:
+                        char_color = "#868686"  # Grey background for death events (same as rectangle color)
+                        text_color = "white"
+                        # Add skull emoji after the main character name for death events
+                        skull_emoji = "                                              💀"
+                        hovertemplate = f'<b style="color:{text_color}; text-align: center;">%{{customdata[0]}}{skull_emoji}</b><br><span style="color:{text_color}; text-align: center;">%{{customdata[1]}}</span><br><br><span style="color:{text_color}; text-align: center;">%{{customdata[2]}}</span><br><br><i style="color:{text_color}; text-align: center;">Characters:<br>%{{customdata[3]}}</i><extra></extra>'
+                    else:
+                        # Calculate text color based on background brightness for normal events
+                        text_color = 'black' if np.mean([int(char_color[i:i+2], 16) for i in (1, 3, 5)]) > 128 else 'white'
+                        # Add star emoji after the main character name for normal events
+                        star_emoji = "                                              ⭐"
+                        hovertemplate = f'<b style="color:{text_color}">%{{customdata[0]}}{star_emoji}</b><br><span style="color:{text_color}">%{{customdata[1]}}</span><br><br><span style="color:{text_color}">%{{customdata[2]}}</span><br><br><i style="color:{text_color}">Characters:<br>%{{customdata[3]}}</i><extra></extra>'
                     
                     all_hover_traces.append(
                         go.Scatter(
@@ -641,11 +834,14 @@ def create_dark_timeline_grid(character_spacing=1.0, event_spacing=1.0, rect_wid
                             ),
                             hoverinfo='all',
                             customdata=[[event.get('FirstMainCharacter', 'N/A'), event_date, wrapped_description, wrapped_characters]],
-                            hovertemplate=f'<b style="color:{text_color}">%{{customdata[0]}}</b><br><span style="color:{text_color}">%{{customdata[1]}}</span><br><br><span style="color:{text_color}">%{{customdata[2]}}</span><br><br><i style="color:{text_color}">Characters:<br>%{{customdata[3]}}</i><extra></extra>',
+                            hovertemplate=hovertemplate,
                             hoverlabel=dict(bgcolor=char_color, bordercolor="white", font=dict(color=text_color)),
                             showlegend=False
                         )
                     )
+            
+            # Add interactive buttons for this single event (positioned at the center of the rectangle)
+            add_interactive_buttons(all_hover_traces, x_position, char_positions[event['FirstMainCharacter']], event, i, rect_width, rect_height, events_df)
             
             # Add rectangles for characters NOT involved in this event
             if show_non_participants:
@@ -696,7 +892,7 @@ def create_dark_timeline_grid(character_spacing=1.0, event_spacing=1.0, rect_wid
                         char_event_participation[char].append(idx)
 
             # Process each event in the group to collect all characters involved and assign descriptions
-            for idx, (_, event) in enumerate(event_group):
+            for idx, (original_event_idx, event) in enumerate(event_group):
                 event_date = event['Date'].strftime('%Y-%m-%d')
                 
                 # Collect characters
@@ -726,7 +922,7 @@ def create_dark_timeline_grid(character_spacing=1.0, event_spacing=1.0, rect_wid
                         is_death = death_value == True or death_value == 'True'
                         assigned_descriptions[event['FirstMainCharacter']] = {
                             "desc": event['FormattedDescription'],
-                            "event_idx": idx,
+                            "event_idx": original_event_idx,  # Use the original event index from dataframe
                             "important": event.get('Important Trigger', False),
                             "death": is_death
                         }
@@ -832,7 +1028,7 @@ def create_dark_timeline_grid(character_spacing=1.0, event_spacing=1.0, rect_wid
                                         'contracted_height': rect_height * 0.4  # Made smaller
                                     }
                         else:
-                            # Both neighbors are active
+                            # Both neighbors active
                             if asymmetric_expansion and (char_above_has_text or char_below_has_text):
                                 # Special case: if both neighbors have text, apply asymmetric expansion
                                 if char_above_has_text and char_below_has_text:
@@ -911,17 +1107,31 @@ def create_dark_timeline_grid(character_spacing=1.0, event_spacing=1.0, rect_wid
                     if char in all_chars_involved:
                         # Check if any event in the group is a death event involving this character
                         is_death_event = False
+                        is_important_event = False
                         for _, event in event_group:
                             death_value = event.get('Death', False)
                             is_death = death_value == True or death_value == 'True'
                             if is_death and char == event['FirstMainCharacter']:
                                 is_death_event = True
                                 break
+                            # Check if this character is involved in an important event
+                            if char == event['FirstMainCharacter'] and event.get('Important Trigger', False):
+                                is_important_event = True
                         
                         if is_death_event:
                             color = "#868686"  # Gray color for death events
                         else:
-                            color = character_colors.get(char, "#FFFFFF")  # Normal Color
+                            base_color = character_colors.get(char, "#FFFFFF")  # Normal Color
+                            if is_important_event:
+                                # Make the color dimmer for important events
+                                # Convert hex to RGB, reduce brightness, convert back to hex
+                                hex_color = base_color.lstrip('#')
+                                rgb = tuple(int(hex_color[i:i+2], 16) for i in (0, 2, 4))
+                                # Reduce brightness by 30%
+                                dimmed_rgb = tuple(int(c * 0.7) for c in rgb)
+                                color = '#%02x%02x%02x' % dimmed_rgb
+                            else:
+                                color = base_color
                         
                         # Define coordinates for the rectangle
                         x0 = x_position - rect_width
@@ -1104,7 +1314,7 @@ def create_dark_timeline_grid(character_spacing=1.0, event_spacing=1.0, rect_wid
                                 char,
                                 char_positions,
                                 event_rects,
-                                idx,
+                                desc_info["event_idx"],  # Use the stored original event index
                                 expansion_info,
                                 desc_info["death"]  # Pass death information
                             )
@@ -1146,6 +1356,10 @@ def create_dark_timeline_grid(character_spacing=1.0, event_spacing=1.0, rect_wid
                             hover_desc = primary_event.get('Full_Description', primary_event.get('FormattedDescription', ''))
                             hover_date = primary_event['Date'].strftime('%Y-%m-%d')
                             
+                            # Check if this is a death event
+                            death_value = primary_event.get('Death', False)
+                            is_death = death_value == True or death_value == 'True'
+                            
                             # Wrap the description and characters for better vertical display
                             wrapped_description = wrap_event_text(hover_desc, width=50)
                             wrapped_characters = wrap_event_text(primary_event.get('Characters', 'N/A'), width=40)
@@ -1153,8 +1367,19 @@ def create_dark_timeline_grid(character_spacing=1.0, event_spacing=1.0, rect_wid
                             # Get character color for hover background
                             char_color = character_colors.get(char, "#FFFFFF")
                             
-                            # Calculate text color based on background brightness
-                            text_color = 'black' if np.mean([int(char_color[i:i+2], 16) for i in (1, 3, 5)]) > 128 else 'white'
+                            # For death events, override with grey background and white text
+                            if is_death:
+                                char_color = "#868686"  # Grey background for death events (same as rectangle color)
+                                text_color = "white"
+                                # Add skull emoji after the main character name for death events
+                                skull_emoji = "                                                                             💀"
+                                hovertemplate = f'<b style="color:{text_color}; text-align: center;">%{{customdata[0]}}{skull_emoji}</b><br><span style="color:{text_color}; text-align: center;">%{{customdata[1]}}</span><br><br><span style="color:{text_color}; text-align: center;">%{{customdata[2]}}</span><br><br><i style="color:{text_color}; text-align: center;">Characters:<br>%{{customdata[3]}}</i><extra></extra>'
+                            else:
+                                # Calculate text color based on background brightness for normal events
+                                text_color = 'black' if np.mean([int(char_color[i:i+2], 16) for i in (1, 3, 5)]) > 128 else 'white'
+                                # Add star emoji after the main character name for normal events
+                                star_emoji = "                                                                             ⭐"
+                                hovertemplate = f'<b style="color:{text_color}">%{{customdata[0]}}{star_emoji}</b><br><span style="color:{text_color}">%{{customdata[1]}}</span><br><br><span style="color:{text_color}">%{{customdata[2]}}</span><br><br><i style="color:{text_color}">Characters:<br>%{{customdata[3]}}</i><extra></extra>'
                             
                             all_hover_traces.append(
                                 go.Scatter(
@@ -1167,7 +1392,7 @@ def create_dark_timeline_grid(character_spacing=1.0, event_spacing=1.0, rect_wid
                                     ),
                                     hoverinfo='all',
                                     customdata=[[primary_event.get('FirstMainCharacter', 'N/A'), hover_date, wrapped_description, wrapped_characters]],
-                                    hovertemplate=f'<b style="color:{text_color}">%{{customdata[0]}}</b><br><span style="color:{text_color}">%{{customdata[1]}}</span><br><br><span style="color:{text_color}">%{{customdata[2]}}</span><br><br><i style="color:{text_color}">Characters:<br>%{{customdata[3]}}</i><extra></extra>',
+                                    hovertemplate=hovertemplate,
                                     hoverlabel=dict(bgcolor=char_color, bordercolor="white", font=dict(color=text_color)),
                                     showlegend=False
                                 )
@@ -1177,6 +1402,13 @@ def create_dark_timeline_grid(character_spacing=1.0, event_spacing=1.0, rect_wid
                     elif show_non_participants:
                         event_date_str = event_group[0][1]['Date'].strftime('%d-%m-%Y')
                         add_non_participant_rectangles([char], x_position, event_date_str)
+        
+        # Add interactive buttons for merged events
+        for idx, (event_idx, event) in enumerate(event_group):
+            # Position buttons relative to the first main character of each event
+            if event.get('FirstMainCharacter') and event['FirstMainCharacter'] in char_positions:
+                char_position = char_positions[event['FirstMainCharacter']]
+                add_interactive_buttons(all_hover_traces, x_position, char_position, event, event_idx, rect_width, rect_height, events_df)
         
         # Increment output_position for the next event or merged group
         # --- Add horizontal slit for world indicator here ---
@@ -1194,7 +1426,7 @@ def create_dark_timeline_grid(character_spacing=1.0, event_spacing=1.0, rect_wid
             world = event_group[0][1].get('World', None)
         
         x_pos = output_position * event_spacing
-        slit_y = len(main_characters) * character_spacing + 0.2  # Just below the last row
+        slit_y = len(main_characters) * character_spacing + 0.5  # Position below the plot area but within visible range
         slit_width = rect_width * 1.2
         slit_height = 0.2  # Height for the rounded rectangle
         
@@ -1317,8 +1549,31 @@ def create_dark_timeline_grid(character_spacing=1.0, event_spacing=1.0, rect_wid
     max_x = output_position * event_spacing
     total_char_space = len(main_characters) * character_spacing
     
-    # Calculate the figure height based on character spacing
-    figure_height = 1200  # Base height plus spacing factor
+    # Calculate dead space in data coordinates (approximately 600px converted to data units)
+    # Assuming roughly 100 pixels per data unit, 600px ≈ 6 data units
+    dead_space_data_units = 6.0
+    
+    # Add background image to cover the entire plot area with extension
+    fig.add_layout_image(
+        dict(
+            source="C:/Users/User/Desktop/CurrentVersion/bgimplusplus.png",
+            xref="x",
+            yref="y",
+            x=-6,  # Extended even further left to ensure full coverage
+            y=-dead_space_data_units - 2,  # Start from below the dead space area
+            sizex=max_x + 12,  # Cover more width (6 units on each side for full coverage)
+            sizey=total_char_space + dead_space_data_units + 6,  # Cover from dead space to bottom of plot
+            sizing="stretch",  # Force the image to stretch to fill the entire specified area
+            opacity=1.0,
+            layer="below"
+        )
+    )
+
+    # Calculate the figure height to make the plot area exactly 1600px
+    # The plot area height should be 1600px, so we calculate figure height accordingly
+    target_plot_height = 1600  # Target height for the plot area in pixels
+    dead_space_top = 600  # Additional dead space at the top in pixels
+    figure_height = target_plot_height + dead_space_top  # Set figure height to achieve 1600px plot area + dead space
 
     # Format character names with line breaks at the "/" and add extra line break between names
     formatted_character_names = [" " for _ in main_characters]  # Empty y-axis labels
@@ -1340,17 +1595,30 @@ def create_dark_timeline_grid(character_spacing=1.0, event_spacing=1.0, rect_wid
             )
         )
         
-        all_text_traces.append(
-            go.Scatter(
-                x=[-label_width / 2],
-                y=[char_positions[char]],
-                mode='text',
-                text=[char],
-                textfont=dict(color='white', size=8),
-                hoverinfo='none',
-                showlegend=False
-            )
+        # Create character label text trace with proper naming and data structure
+        char_label_trace = go.Scatter(
+            x=[-label_width / 2],
+            y=[char_positions[char]],
+            mode='text',
+            text=[char],
+            textfont=dict(color='white', size=8),
+            hoverinfo='none',
+            showlegend=False,
+            name=f'character_label_{char.replace(" ", "_").replace("/", "_")}',
+            # Use -1 as event_idx to indicate character label
+            # Format: [event_idx, character, x_position, original_color, is_character_label]
+            customdata=[-1, char, -label_width / 2, 'white', True],
+            # Add metadata for easier JavaScript access
+            meta={
+                'event_idx': -1,
+                'character': char,
+                'x_position': -label_width / 2,
+                'original_color': 'white',
+                'trace_type': 'character_label'
+            }
         )
+        
+        all_text_traces.append(char_label_trace)
     
     # Create unique date labels for x-axis - use position instead of index
     unique_dates = []
@@ -1383,31 +1651,44 @@ def create_dark_timeline_grid(character_spacing=1.0, event_spacing=1.0, rect_wid
         # Increment output_position for the next event or merged group
         output_position += 1
 
-    # Set up the layout
+    # Add all shapes to the figure in a single operation
     fig.update_layout(
-        width=12288,
+        width=16380,
         height=figure_height,  # Dynamic height based on character spacing
-        plot_bgcolor='#111111',
-        paper_bgcolor='#111111',
-        margin=dict(l=0, r=0, t=0, b=0),  # Increased left margin for character names
+        plot_bgcolor='#000000',  # Black background color as base
+        paper_bgcolor='#000000',  # Black background color as base
+        margin=dict(l=0, r=0, t=0, b=0),  # No margins - let plot area handle the full space
         xaxis=dict(
             showgrid=False,
             zeroline=False,
-            range=[-2, max_x],  # Add more padding
+            range=[-2, max_x + 1],  # Add more padding on the right to ensure dates show
             tickvals=unique_positions,  # Show positions of unique dates
             ticktext=unique_dates,      # Show formatted unique date labels
-            tickfont=dict(color='white', size=13),
+            tickfont=dict(color='#FFFFFF', size=14),  # Explicit white color and larger size
+            side='bottom',  # Ensure dates appear at the bottom
+            showticklabels=True  # Explicitly show tick labels
         ),
         yaxis=dict(
             showgrid=False,
             zeroline=False,
-            range=[0,total_char_space],  # Use the actual character space for range
+            range=[total_char_space + 1, -dead_space_data_units],  # Extended range to show world indicators
             tickvals=[ i * character_spacing for i in range(len(main_characters))],
             ticktext=formatted_character_names,
             tickfont=dict(color='white', size=16),
-            autorange='reversed'  # Flip y-axis to match the requested layout
+            autorange=False,  # Disable autorange to maintain our custom range
+            fixedrange=True,  # Prevent zooming to ensure dead space remains visible
+            side='left',  # Ensure character names appear on the left
+            showticklabels=True  # Explicitly show tick labels
         )
     )
+    
+    # Add click events to the button traces for interactive functionality
+    # This will be handled via custom JavaScript when the HTML is generated
+    for trace in all_hover_traces:
+        if hasattr(trace, 'name') and trace.name and trace.name.startswith('btn_'):
+            # Add custom data for JavaScript interaction
+            if not hasattr(trace, 'customdata') or trace.customdata is None:
+                trace.customdata = []
     
     return fig
 
@@ -1423,20 +1704,498 @@ if __name__ == "__main__":
         asymmetric_expansion=True     # Enable asymmetric expansion for adjacent rectangles with text
     )
     
-    # Save as interactive HTML
-    pio.write_html(fig, "Results/DarkTetris2.html")
+    # Save as interactive HTML with custom JavaScript for button functionality
+    # Configure to completely remove all toolbar functionality and interactions
+    config = {
+        'displayModeBar': False,  # This removes the entire toolbar
+        'displaylogo': False,
+        'staticPlot': False,  # Keep interactivity for hover and clicks
+        'scrollZoom': False,  # Disable scroll zoom
+        'doubleClick': False,  # Disable double-click zoom
+        'showTips': False,  # Disable tips
+        'showAxisDragHandles': False,  # Disable axis drag handles
+        'showAxisRangeEntryBoxes': False,  # Disable axis range entry boxes
+        'dragmode': False,  # Disable all drag modes (zoom, pan, etc.)
+        'toImageButtonOptions': {
+            'format': 'png',
+            'filename': 'timeline',
+            'height': 1200,
+            'width': 12288,
+            'scale': 1
+        }
+    }
+    
+    html_string = pio.to_html(fig, include_plotlyjs=True, config=config)
+    
+    # Add CSS to ensure no gray overlay from HTML/body elements and force white dates
+    css_injection = """
+    <style>
+    body, html {
+        background-color: transparent !important;
+        background: transparent !important;
+    }
+    .plotly-graph-div {
+        background-color: transparent !important;
+        background: transparent !important;
+    }
+    .main-svg {
+        background-color: transparent !important;
+        background: transparent !important;
+    }
+    /* Force white color for date labels */
+    .xtick text {
+        fill: white !important;
+        color: white !important;
+    }
+    .xaxis .tick text {
+        fill: white !important;
+        color: white !important;
+    }
+    </style>
+    """
+    
+    # Inject CSS into the HTML
+    html_string = html_string.replace('<head>', '<head>' + css_injection)
+    
+    # Create simple event data mapping for JavaScript
+    all_events_data = []
+    shape_to_event_mapping = []  # Maps shape index to event info
+    
+    # Process events to create mapping
+    shape_index = 0
+    for idx, row in events_df.iterrows():
+        event_data = {
+            'event_idx': idx,
+            'type': row.get('Type', ''),
+            'characters': row.get('Characters', ''),
+            'first_main_character': row.get('FirstMainCharacter', ''),
+            'date': row['Date'].strftime('%Y-%m-%d') if pd.notnull(row['Date']) else ''
+        }
+        all_events_data.append(event_data)
+        
+        # Add shape mapping info for this event
+        # Note: This is a simplified mapping - in reality, each event can have multiple shapes
+        # We'll need to enhance this in the JavaScript side
+        shape_to_event_mapping.append({
+            'event_idx': idx,
+            'event_type': row.get('Type', ''),
+            'shape_start_index': shape_index  # Will be updated when we know actual count
+        })
+    
+    # Convert to JavaScript format
+    import json
+    all_events_js = json.dumps(all_events_data)
+    
+    # Add custom JavaScript for button click handling
+    custom_js = f"""
+    <script>
+    // Event data injected from Python
+    var allEventsData = {all_events_js};
+    
+    document.addEventListener('DOMContentLoaded', function() {{
+        var graphDiv = document.getElementsByClassName('plotly-graph-div')[0];
+        
+        // Store original properties for reset functionality
+        var originalShapeProperties = {{}};
+        var originalTraceProperties = {{}};
+        var removedTextTraces = [];  // Store removed text traces for restoration
+        var removedTextIndices = [];  // Track which indices were removed
+        var isHighlightActive = false;
+        var currentHighlightType = null;
+        var currentHighlightNumber = null;
+        
+        // Function to check if an event's Type contains the target pattern
+        function eventContainsType(eventType, targetType, targetNumber) {{
+            if (!eventType) return false;
+            
+            // Handle both exact matches and typos
+            var patterns = [];
+            if (targetType === "Successful Time Travel") {{
+                patterns = [
+                    "Successful Time Travel (" + targetNumber + ")",
+                    "Succesfull Time Travel (" + targetNumber + ")"
+                ];
+            }} else if (targetType === "World Swap") {{
+                patterns = [
+                    "World Swap (" + targetNumber + ")"
+                ];
+            }} else {{
+                patterns = [targetType + " (" + targetNumber + ")"];
+            }}
+            
+            for (var pattern of patterns) {{
+                if (eventType.includes(pattern)) {{
+                    return true;
+                }}
+            }}
+            return false;
+        }}
+        
+        // Function to get all event indices that contain the target type
+        function getMatchingEventIndices(targetType, targetNumber) {{
+            var matchingIndices = [];
+            for (var i = 0; i < allEventsData.length; i++) {{
+                if (eventContainsType(allEventsData[i].type, targetType, targetNumber)) {{
+                    matchingIndices.push(allEventsData[i].event_idx);
+                }}
+            }}
+            return matchingIndices;
+        }}
+        
+        // Function to get positions of events that should stay bright
+        function getPositionsToKeepBright(targetType, targetNumber) {{
+            var brightPositions = [];
+            var data = graphDiv.data;
+            var matchingEventIndices = getMatchingEventIndices(targetType, targetNumber);
+            
+            // Only go through button traces to find exact matching events
+            for (var i = 0; i < data.length; i++) {{
+                var trace = data[i];
+                if (trace.name && trace.name.startsWith('btn_') && trace.customdata) {{
+                    var eventIdx = trace.customdata[2]; // Event index from button
+                    var eventX = trace.customdata[3];   // X position of event
+                    var eventY = trace.customdata[4];   // Y position of event
+                    var buttonEventType = trace.customdata[0]; // Button's event type
+                    var buttonEventNumber = trace.customdata[1]; // Button's event number
+                    
+                    // Only include if this button is for the exact same type and number we're highlighting
+                    if (buttonEventType === targetType && buttonEventNumber === targetNumber && matchingEventIndices.includes(eventIdx)) {{
+                        brightPositions.push({{
+                            x: eventX,
+                            y: eventY,
+                            eventIdx: eventIdx
+                        }});
+                    }}
+                }}
+            }}
+            
+            return brightPositions;
+        }}
+        
+        // Function to restore all removed text traces
+        function restoreAllTextTraces() {{
+            if (removedTextTraces.length > 0) {{
+                // Add back all the removed traces at their original positions
+                var tracesToAdd = [];
+                var addIndices = [];
+                
+                for (var i = 0; i < removedTextTraces.length; i++) {{
+                    tracesToAdd.push(removedTextTraces[i]);
+                    addIndices.push(removedTextIndices[i]);
+                }}
+                
+                // Add traces back to the plot
+                Plotly.addTraces(graphDiv, tracesToAdd, addIndices);
+                
+                // Clear the storage arrays
+                removedTextTraces = [];
+                removedTextIndices = [];
+            }}
+        }}
+        
+        // Function to reset all highlighting and restore text visibility
+        function resetHighlight() {{
+            if (!isHighlightActive) return;
+            
+            isHighlightActive = false;
+            currentHighlightType = null;
+            currentHighlightNumber = null;
+            
+            // Restore all removed text traces first
+            restoreAllTextTraces();
+            
+            // Restore original shape properties
+            var layout = graphDiv.layout;
+            var updateShapes = [];
+            
+            if (layout.shapes) {{
+                for (var i = 0; i < layout.shapes.length; i++) {{
+                    var shape = JSON.parse(JSON.stringify(layout.shapes[i]));
+                    shape.opacity = originalShapeProperties[i].opacity;
+                    shape.fillcolor = originalShapeProperties[i].fillcolor;
+                    updateShapes.push(shape);
+                }}
+            }}
+            
+            // Restore trace properties for non-text traces
+            var updateData = [];
+            var data = graphDiv.data;
+            
+            for (var i = 0; i < data.length; i++) {{
+                var trace = data[i];
+                var newTrace = {{}};
+                
+                // Only update non-text traces (buttons, hover traces, etc.)
+                if (!trace.mode || !trace.mode.includes('text')) {{
+                    newTrace.opacity = originalTraceProperties[i] ? originalTraceProperties[i].opacity : 1.0;
+                    if (originalTraceProperties[i] && originalTraceProperties[i].marker) {{
+                        newTrace.marker = JSON.parse(JSON.stringify(originalTraceProperties[i].marker));
+                    }}
+                }} else {{
+                    // For text traces, keep them as they are (already restored above)
+                    newTrace.opacity = 1.0;
+                }}
+                
+                updateData.push(newTrace);
+            }}
+            
+            // Apply updates
+            Plotly.update(graphDiv, updateData, {{shapes: updateShapes}});
+        }}
+        
+        // Main highlighting function with improved text handling
+        function highlightMatchingEvents(targetType, targetNumber) {{
+            if (isHighlightActive && currentHighlightType === targetType && currentHighlightNumber === targetNumber) {{
+                resetHighlight();
+                return;
+            }}
+            
+            // Store original properties if not already stored
+            if (!isHighlightActive) {{
+                var layout = graphDiv.layout;
+                var data = graphDiv.data;
+                
+                // Store original shape properties
+                if (layout.shapes) {{
+                    for (var i = 0; i < layout.shapes.length; i++) {{
+                        originalShapeProperties[i] = {{
+                            opacity: layout.shapes[i].opacity || 1.0,
+                            fillcolor: layout.shapes[i].fillcolor
+                        }};
+                    }}
+                }}
+                
+                // Store original trace properties
+                for (var i = 0; i < data.length; i++) {{
+                    originalTraceProperties[i] = {{
+                        opacity: data[i].opacity || 1.0,
+                        marker: data[i].marker ? JSON.parse(JSON.stringify(data[i].marker)) : undefined,
+                        textfont: data[i].textfont ? JSON.parse(JSON.stringify(data[i].textfont)) : undefined
+                    }};
+                }}
+            }}
+            
+            isHighlightActive = true;
+            currentHighlightType = targetType;
+            currentHighlightNumber = targetNumber;
+            
+            // Get positions and indices
+            var brightPositions = getPositionsToKeepBright(targetType, targetNumber);
+            var matchingEventIndices = getMatchingEventIndices(targetType, targetNumber);
+            
+            // Update shapes (rectangles and paths)
+            var layout = graphDiv.layout;
+            var updateShapes = [];
+            
+            if (layout.shapes) {{
+                for (var i = 0; i < layout.shapes.length; i++) {{
+                    var shape = JSON.parse(JSON.stringify(layout.shapes[i]));
+                    var shouldStayBright = false;
+                    
+                    // Extract shape position
+                    var shapeX = null;
+                    var shapeY = null;
+                    
+                    if (shape.type === 'rect') {{
+                        shapeX = (shape.x0 + shape.x1) / 2;
+                        shapeY = (shape.y0 + shape.y1) / 2;
+                    }} else if (shape.path) {{
+                        // Extract coordinates from SVG path
+                        var pathMatch = shape.path.match(/M\\s*([\\d\\.\\-]+)\\s*([\\d\\.\\-]+)/);
+                        if (pathMatch) {{
+                            var allMatches = shape.path.match(/([\\d\\.\\-]+)/g);
+                            if (allMatches && allMatches.length >= 4) {{
+                                var yCoords = [];
+                                for (var j = 1; j < allMatches.length; j += 2) {{
+                                    yCoords.push(parseFloat(allMatches[j]));
+                                }}
+                                if (yCoords.length > 0) {{
+                                    var minY = Math.min(...yCoords);
+                                    var maxY = Math.max(...yCoords);
+                                    shapeY = (minY + maxY) / 2;
+                                    
+                                    var xCoords = [];
+                                    for (var j = 0; j < allMatches.length; j += 2) {{
+                                        xCoords.push(parseFloat(allMatches[j]));
+                                    }}
+                                    if (xCoords.length > 0) {{
+                                        var minX = Math.min(...xCoords);
+                                        var maxX = Math.max(...xCoords);
+                                        shapeX = (minX + maxX) / 2;
+                                    }}
+                                }}
+                            }}
+                        }}
+                    }}
+                    
+                    // Check if this shape should stay bright
+                    if (shapeX !== null && shapeY !== null) {{
+                        // Always keep world indicators bright (they have layer="above")
+                        if (shape.layer === "above") {{
+                            shouldStayBright = true;
+                        }} else {{
+                            // Only dim event rectangles - check against event positions
+                            for (var pos of brightPositions) {{
+                                if (Math.abs(shapeX - pos.x) < 0.1 && Math.abs(shapeY - pos.y) < 1.5) {{
+                                    shouldStayBright = true;
+                                    break;
+                                }}
+                            }}
+                        }}
+                    }}
+                    
+                    if (shouldStayBright) {{
+                        shape.opacity = originalShapeProperties[i].opacity;
+                        shape.fillcolor = originalShapeProperties[i].fillcolor;
+                    }} else {{
+                        shape.opacity = 0.15;
+                    }}
+                    
+                    updateShapes.push(shape);
+                }}
+            }}
+            
+            // First, restore any previously removed text traces
+            restoreAllTextTraces();
+            
+            // Update traces with text removal approach
+            var data = graphDiv.data;
+            var updateData = [];
+            var tracesToRemove = []; // Indices of text traces to remove
+            
+            for (var i = 0; i < data.length; i++) {{
+                var trace = data[i];
+                var newTrace = {{}};
+                
+                // Handle button traces
+                if (trace.name && trace.name.startsWith('btn_') && trace.customdata) {{
+                    var eventType = trace.customdata[0];
+                    var eventNumber = trace.customdata[1];
+                    
+                    if (eventType === targetType && eventNumber === targetNumber) {{
+                        newTrace.opacity = 1.0;
+                        if (trace.marker) {{
+                            newTrace.marker = JSON.parse(JSON.stringify(trace.marker));
+                            newTrace.marker.opacity = 1.0;
+                        }}
+                    }} else {{
+                        newTrace.opacity = 0.3;
+                        if (trace.marker) {{
+                            newTrace.marker = JSON.parse(JSON.stringify(trace.marker));
+                            newTrace.marker.opacity = 0.3;
+                        }}
+                    }}
+                }} else {{
+                    // Handle text and other traces
+                    var isTextTrace = trace.mode && trace.mode.includes('text');
+                    
+                    if (isTextTrace) {{
+                        // Character labels always stay visible
+                        if (trace.name && trace.name.startsWith('character_label_')) {{
+                            newTrace.opacity = 1.0;
+                            if (originalTraceProperties[i].textfont) {{
+                                newTrace.textfont = JSON.parse(JSON.stringify(originalTraceProperties[i].textfont));
+                            }}
+                        }} 
+                        // Event text traces - check if they belong to matching events
+                        else if (trace.name && trace.name.startsWith('text_trace_') && trace.customdata) {{
+                            var textEventIdx = trace.customdata[0];
+                            
+                            if (!matchingEventIndices.includes(textEventIdx)) {{
+                                // Mark this text trace for removal
+                                tracesToRemove.push(i);
+                                // Skip adding update data for traces to be removed
+                                continue;
+                            }} else {{
+                                // Keep matching text visible with original styling
+                                var originalColor = trace.customdata[3];
+                                newTrace.opacity = 1.0;
+                                newTrace.textfont = {{
+                                    color: originalColor,
+                                    size: (originalTraceProperties[i].textfont && originalTraceProperties[i].textfont.size) || 14
+                                }};
+                            }}
+                        }} else {{
+                            // Other text traces - keep original
+                            newTrace.opacity = originalTraceProperties[i].opacity;
+                            if (originalTraceProperties[i].textfont) {{
+                                newTrace.textfont = JSON.parse(JSON.stringify(originalTraceProperties[i].textfont));
+                            }}
+                        }}
+                    }} else {{
+                        // Non-text traces (hover traces, etc.)
+                        var shouldKeepVisible = false;
+                        
+                        // Check if this hover trace is related to a matching event
+                        if (trace.customdata && trace.customdata.length > 0) {{
+                            for (var pos of brightPositions) {{
+                                if (trace.x && trace.y && trace.x.length > 0 && trace.y.length > 0) {{
+                                    if (Math.abs(trace.x[0] - pos.x) < 0.1 && Math.abs(trace.y[0] - pos.y) < 1.5) {{
+                                        shouldKeepVisible = true;
+                                        break;
+                                    }}
+                                }}
+                            }}
+                        }}
+                        
+                        newTrace.opacity = shouldKeepVisible ? 1.0 : 0.15;
+                    }}
+                }}
+                
+                updateData.push(newTrace);
+            }}
+            
+            // Apply updates to remaining traces first
+            Plotly.update(graphDiv, updateData, {{shapes: updateShapes}});
+            
+            // Now remove the non-matching text traces
+            if (tracesToRemove.length > 0) {{
+                // Store the traces before removing them, in reverse order to maintain indices
+                tracesToRemove.sort((a, b) => b - a); // Sort in descending order
+                
+                for (var idx of tracesToRemove) {{
+                    removedTextTraces.push(JSON.parse(JSON.stringify(data[idx])));
+                    removedTextIndices.push(idx);
+                }}
+                
+                // Remove traces (in descending order to maintain correct indices)
+                Plotly.deleteTraces(graphDiv, tracesToRemove);
+            }}
+        }}
+        
+        // Add click event listener
+        graphDiv.on('plotly_click', function(data) {{
+            var point = data.points[0];
+            var trace = graphDiv.data[point.curveNumber];
+            
+            // Check if clicked point is a button
+            if (trace.name && trace.name.startsWith('btn_') && trace.customdata) {{
+                var eventType = trace.customdata[0];
+                var eventNumber = trace.customdata[1];
+                
+                highlightMatchingEvents(eventType, eventNumber);
+            }}
+        }});
+        
+        // Add double-click to reset
+        graphDiv.on('plotly_doubleclick', function() {{
+            resetHighlight();
+        }});
+    }});
+    </script>
+    """
+    
+    # Insert the custom JavaScript before the closing body tag
+    html_string = html_string.replace('</body>', custom_js + '</body>')
+    
+    # Write the modified HTML
+    with open("Results/fckbksfrnocap.html", "w", encoding="utf-8") as f:
+        f.write(html_string)
 
     # Save as high-resolution image - height now scales with character spacing
-    pio.write_image(fig, "Results/DarkTetris2.png", 
+    pio.write_image(fig, "Results/fckbksfrnocap.png", 
                    width=12288, height=1200, scale=1)
     
-    # Save as SVG
-    pio.write_image(fig, "Results/DarkTetris2.svg", 
-                   width=12288, height=1200, scale=1)
-    
-    # Save as PSD (Photoshop native format)
-    pio.write_image(fig, "Results/DarkTetris2.psd", 
-                    width=12288, height=1200, scale=1)
 
     print("Visualization created successfully!")
     # Calculate and display execution time
